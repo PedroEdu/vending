@@ -33,16 +33,13 @@
 		Abagail
 		J'Zargo
 		Slice
+		PeterLinkson
 
 	Version:
-		2.2(Updated by Abagail)
+		2.2 Especial for me
 */
 
 //------------------------------------------------------------------------------
-
-#if !defined _samp_included
-	#tryinclude <a_samp>
-#endif
 
 #if defined _vendingm_included
 	#endinput
@@ -60,10 +57,10 @@
 
 #define MACHINE_SNACK 				956
 #define MACHINE_SNACK2 				1776
-#define MACHINE_SPRUNK 				955
+#define MACHINE_SPRUNK 				955 //unused
 #define MACHINE_SPRUNK2				1775
-#define MACHINE_SODA				1302
-#define MACHINE_SODA2				1209
+#define MACHINE_SODA				1302 //unused
+#define MACHINE_SODA2				1209 //unused
 #define MACHINE_BLACK				1977
 
 #define SODA_RADIUS					1.2
@@ -222,13 +219,10 @@ enum E_VENDING_DATA
 	Float:E_VENDING_RADIUS,
 	E_VENDING_COLOR,
 	E_VENDING_TYPE,
-	E_VENDING_ID,
-	STREAMER_TAG_AREA E_VENDING_AREA
+	E_VENDING_ID
 }
 static g_eVendingData[MAX_MACHINES][E_VENDING_DATA];
 
-//------------------------------------------------------------------------------
-static g_eLastDrink[MAX_PLAYERS] = 0;
 //------------------------------------------------------------------------------
 
 forward OnPlayerUseVendingMachine(playerid, machineid);
@@ -252,32 +246,37 @@ stock CreateVendingMachine(modelid, Float:x, Float:y, Float:z, Float:rx, Float:r
 	switch(modelid)
 	{
 		case MACHINE_SPRUNK2:
+		{
 			g_eVendingData[machineid][E_VENDING_RADIUS] = SPRUNK_RADIUS;
+			g_eVendingData[machineid][E_VENDING_ID]	= CreateDynamicObject(1775, x, y, z, rx, ry, rz);
+		}
 		case MACHINE_SPRUNK:
+		{
 			g_eVendingData[machineid][E_VENDING_RADIUS] = SPRUNK_RADIUS;
-		case MACHINE_SNACK:
+			g_eVendingData[machineid][E_VENDING_ID]	= CreateDynamicObject(1775, x, y, z +0.7, rx, ry, rz);
+		}
+		case MACHINE_SODA, MACHINE_SODA2:
+		{
+			g_eVendingData[machineid][E_VENDING_RADIUS] = SPRUNK_RADIUS;
+			g_eVendingData[machineid][E_VENDING_ID]	= CreateDynamicObject(1775, x, y, z +1.0, rx, ry, rz);
+		}
+		case MACHINE_SNACK, MACHINE_SNACK2:
+		{
 			g_eVendingData[machineid][E_VENDING_RADIUS] = SNACK_RADIUS;
-		case MACHINE_SNACK2:
-			g_eVendingData[machineid][E_VENDING_RADIUS] = SNACK_RADIUS;
-		case MACHINE_SODA:
-			g_eVendingData[machineid][E_VENDING_RADIUS] = SODA_RADIUS;
-		case MACHINE_SODA2:
-			g_eVendingData[machineid][E_VENDING_RADIUS] = SODA_RADIUS;
+			g_eVendingData[machineid][E_VENDING_ID]	= CreateDynamicObject(modelid, x, y, z, rx, ry, rz);
+		}	
 		case MACHINE_BLACK:
+		{
 			g_eVendingData[machineid][E_VENDING_RADIUS] = SPRUNK_RADIUS;
+			g_eVendingData[machineid][E_VENDING_ID]	= CreateDynamicObject(1977, x, y, z, rx, ry, rz);
+		}
+		
 		default:
 		{
-			printf("ERROR: Invalid vending object id! (Used ID: %i - Valid IDs: 955, 956 or 1302)", modelid);
+			printf("ERROR: Invalid vending object id! (Used ID: %i - Valid IDs: 1775, 956 or 1977)", modelid);
 			return 0;
 		}
 	}
-
-	#if defined Streamer_IncludeFileVersion
-		g_eVendingData[machineid][E_VENDING_ID]	= CreateDynamicObject(modelid, x, y, z, rx, ry, rz);
-		g_eVendingData[machineid][E_VENDING_AREA] = STREAMER_TAG_AREA CreateDynamicRectangle(x, y, x+g_eVendingData[machineid][E_VENDING_RADIUS], y+g_eVendingData[machineid][E_VENDING_RADIUS]);
-	#else
-		g_eVendingData[machineid][E_VENDING_ID]	= CreateObject(modelid, x, y, z, rx, ry, rz, 300.0);
-	#endif
 
 	g_eVendingData[machineid][E_VENDING_X]	= x;
 	g_eVendingData[machineid][E_VENDING_Y]	= y;
@@ -298,11 +297,8 @@ stock DestroyVendingMachine(machineid)
 	if(!IsValidVendingMachine(machineid))
 		return 0;
 
-	#if defined Streamer_IncludeFileVersion
 	DestroyDynamicObject(g_eVendingData[machineid][E_VENDING_ID]);
-	#else
-	DestroyObject(g_eVendingData[machineid][E_VENDING_ID]);
-	#endif
+
 
 	g_eVendingData[machineid][E_VENDING_ID] = INVALID_MACHINE_ID;
 
@@ -315,7 +311,6 @@ stock DestroyVendingMachine(machineid)
 	g_eVendingData[machineid][E_VENDING_RZ] = 0.0;
 
 	g_eVendingData[machineid][E_VENDING_TYPE] = 0;
-	g_eVendingData[machineid][E_VENDING_AREA] = -1;
 	return 1;
 }
 
@@ -328,21 +323,12 @@ stock SetVendingMachineColor(machineid, color)
 
 	if(GetVendingMachineType(machineid) == MACHINE_SODA)
 	{
-		#if defined Streamer_IncludeFileVersion
 		SetDynamicObjectMaterial(g_eVendingData[machineid][E_VENDING_ID], 0, -1, "none", "none", color);
 		SetDynamicObjectMaterial(g_eVendingData[machineid][E_VENDING_ID], 1, -1, "none", "none", color);
-		#else
-		SetObjectMaterial(g_eVendingData[machineid][E_VENDING_ID], 0, -1, "none", "none", color);
-		SetObjectMaterial(g_eVendingData[machineid][E_VENDING_ID], 1, -1, "none", "none", color);
-		#endif
 	}
 	else
 	{
-		#if defined Streamer_IncludeFileVersion
 		SetDynamicObjectMaterial(g_eVendingData[machineid][E_VENDING_ID], 0, -1, "none", "none", color);
-		#else
-		SetObjectMaterial(g_eVendingData[machineid][E_VENDING_ID], 0, -1, "none", "none", color);
-		#endif
 	}
 
 	g_eVendingData[machineid][E_VENDING_COLOR] = color;
@@ -358,11 +344,7 @@ stock GetVendingMachineColor(machineid)
 
 stock GetVendingMachineObjectType()
 {
-	#if defined Streamer_IncludeFileVersion
 	return OBJECT_TYPE_DYNAMIC;
-	#else
-	return OBJECT_TYPE_NORMAL;
-	#endif
 }
 
 //------------------------------------------------------------------------------
@@ -396,11 +378,7 @@ stock SetVendingMachinePos(machineid, Float:x, Float:y, Float:z)
 	g_eVendingData[machineid][E_VENDING_Y] = y;
 	g_eVendingData[machineid][E_VENDING_Z] = z;
 
-	#if defined Streamer_IncludeFileVersion
 	SetDynamicObjectPos(g_eVendingData[machineid][E_VENDING_ID], x, y, z);
-	#else
-	SetObjectPos(g_eVendingData[machineid][E_VENDING_ID], x, y, z);
-	#endif
 	return 1;
 }
 
@@ -415,12 +393,7 @@ stock SetVendingMachineRot(machineid, Float:rx, Float:ry, Float:rz)
 	g_eVendingData[machineid][E_VENDING_RY] = ry;
 	g_eVendingData[machineid][E_VENDING_RZ] = rz;
 
-
-	#if defined Streamer_IncludeFileVersion
 	SetDynamicObjectRot(g_eVendingData[machineid][E_VENDING_ID], rx, ry, rz);
-	#else
-	SetObjectRot(g_eVendingData[machineid][E_VENDING_ID], rx, ry, rz);
-	#endif
 	return 1;
 }
 
@@ -457,7 +430,6 @@ stock GetVendingMachineObjectID(machineid)
 
 //------------------------------------------------------------------------------
 
-#if !defined Streamer_IncludeFileVersion
 GetXYInFrontOfVending(machineid, &Float:x, &Float:y, Float:distance)
 {
 	new Float:a, Float:z;
@@ -472,18 +444,6 @@ GetXYInFrontOfVending(machineid, &Float:x, &Float:y, Float:distance)
 }
 
 //------------------------------------------------------------------------------
-#else
-stock STREAMER_TAG_AREA GetVendingMachineDynamicArea(machineid)
-{
-	if(!IsValidVendingMachine(machineid))
-	{
-		return INVALID_MACHINE_ID;
-	}
-	
-	else return g_eVendingData[machineid][E_VENDING_AREA];
-}
-//------------------------------------------------------------------------------
-#endif
 
 public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 {
@@ -494,35 +454,50 @@ public OnPlayerKeyStateChange(playerid, newkeys, oldkeys)
 			if(!IsValidVendingMachine(i))
 				continue;
 
-			#if defined Streamer_IncludeFileVersion
-			if(!IsPlayerInDynamicArea(playerid, g_eVendingData[i][E_VENDING_AREA]))
-			    continue;
-			#else
 			new Float:x, Float:y;
 			GetXYInFrontOfVending(i, x, y, 0.5);
-			if(!IsPlayerInRangeOfPoint(playerid, g_eVendingData[i][E_VENDING_RADIUS], x, y, g_eVendingData[i][E_VENDING_Z]))
-				continue;
-			#endif
-
+			
+			switch(g_eVendingData[i][E_VENDING_TYPE])
+			{
+				case MACHINE_SODA, MACHINE_SODA2:
+				{
+					if(!IsPlayerInRangeOfPoint(playerid, g_eVendingData[i][E_VENDING_RADIUS], x, y, g_eVendingData[i][E_VENDING_Z] +1.0)) continue;
+				}
+				case MACHINE_SPRUNK:
+				{
+					if(!IsPlayerInRangeOfPoint(playerid, g_eVendingData[i][E_VENDING_RADIUS], x, y, g_eVendingData[i][E_VENDING_Z] +0.7)) continue;
+				}
+				default:
+				{
+					if(!IsPlayerInRangeOfPoint(playerid, g_eVendingData[i][E_VENDING_RADIUS], x, y, g_eVendingData[i][E_VENDING_Z])) continue;
+				}
+			}
 			SetPlayerFacingAngle(playerid, g_eVendingData[i][E_VENDING_RZ]);
+			
 			if(OnPlayerUseVendingMachine(playerid, i) != 0)
 			{
 				ApplyAnimation(playerid, "VENDING", "VEND_USE", 10.0, 0, 0, 0, 0, 0, 1);
-				if(g_eVendingData[i][E_VENDING_TYPE] == MACHINE_SNACK) PlayerPlaySound(playerid, 42601, 0.0, 0.0, 0.0);
-				else PlayerPlaySound(playerid, 42600, 0.0, 0.0, 0.0);
-
-				#if !defined NO_SPRUNK_ACTION
-				if(g_eVendingData[i][E_VENDING_TYPE] == MACHINE_SPRUNK) SetTimerEx("ven_SetPlayerAnimation", 2500, false, "i", playerid);
-				#endif
+				
+				switch(g_eVendingData[i][E_VENDING_TYPE])
+				{
+					case MACHINE_SNACK, MACHINE_SNACK2: PlayerPlaySound(playerid, 42601, 0.0, 0.0, 0.0); //comer
+					default:
+					{
+						PlayerPlaySound(playerid, 42600, 0.0, 0.0, 0.0); //beber
+						#if !defined NO_SPRUNK_ACTION
+						SetTimerEx("ven_SetPlayerAnimation", 2500, false, "i", playerid);
+						#endif
+					}
+				}
 			}
 			else ClearAnimations(playerid);
 		}
 	}
 	#if !defined NO_SPRUNK_ACTION
-	else if((newkeys & KEY_FIRE) && g_eLastDrink[playerid] < GetTickCount() && (GetPlayerSpecialAction(playerid) == SPECIAL_ACTION_DRINK_SPRUNK))
+	else if((newkeys & KEY_FIRE) && (GetPVarInt(playerid, "ven_lastDrink") < GetTickCount()) && (GetPlayerSpecialAction(playerid) == SPECIAL_ACTION_DRINK_SPRUNK))
 	{
 		OnPlayerDrinkSprunk(playerid);
-		g_eLastDrink[playerid] = GetTickCount() + 2350;
+		SetPVarInt(playerid, "ven_lastDrink", GetTickCount() + 2350);
 	}
 	#endif
 	#if defined inc_Ven_OnPlayerKeyStateChange
@@ -579,100 +554,28 @@ public OnPlayerConnect(playerid)
 
 //------------------------------------------------------------------------------
 
-public OnPlayerDisconnect(playerid, reason)
+public OnGameModeInit()
 {
-	g_eLastDrink[playerid] = 0;
-	#if defined inc_Ven_OnPlayerDisconnect
-		return inc_Ven_OnPlayerDisconnect(playerid);
+	for(new i; i < sizeof(sc_VendingMachines); i++)
+	{
+		CreateVendingMachine(sc_VendingMachines[i][e_Model], sc_VendingMachines[i][e_PosX], sc_VendingMachines[i][e_PosY], sc_VendingMachines[i][e_PosZ], sc_VendingMachines[i][e_RotX], sc_VendingMachines[i][e_RotY], sc_VendingMachines[i][e_RotZ]);
+	}
+
+	#if defined inc_Ven_OnGameModeInit
+		return inc_Ven_OnGameModeInit();
 	#else
 		return 0;
 	#endif
 }
-#if defined _ALS_OnPlayerDisconnect
-	#undef OnPlayerDisconnect
+#if defined _ALS_OnGameModeInit
+	#undef OnGameModeInit
 #else
-	#define _ALS_OnPlayerDisconnect
+	#define _ALS_OnGameModeInit
 #endif
 
-#define OnPlayerDisconnect inc_Ven_OnPlayerDisconnect
-#if defined inc_Ven_OnPlayerDisconnect
-	forward inc_Ven_OnPlayerDisconnect(playerid, reason);
-#endif
-
-//------------------------------------------------------------------------------
-
-#if defined FILTERSCRIPT
-	public OnFilterScriptInit()
-	{
-		for(new i; i < sizeof(sc_VendingMachines); i++)
-		{
-			CreateVendingMachine(sc_VendingMachines[i][e_Model], sc_VendingMachines[i][e_PosX], sc_VendingMachines[i][e_PosY], sc_VendingMachines[i][e_PosZ], sc_VendingMachines[i][e_RotX], sc_VendingMachines[i][e_RotY], sc_VendingMachines[i][e_RotZ]);
-		}
-
-		#if defined inc_Ven_OnFilterScriptInit
-			return inc_Ven_OnFilterScriptInit();
-		#else
-			return 0;
-		#endif
-	}
-	#if defined _ALS_OnFilterScriptInit
-		#undef OnFilterScriptInit
-	#else
-		#define _ALS_OnFilterScriptInit
-	#endif
-
-	#define OnFilterScriptInit inc_Ven_OnFilterScriptInit
-	#if defined inc_Ven_OnFilterScriptInit
-		forward inc_Ven_OnFilterScriptInit();
-	#endif
-
-	public OnFilterScriptExit()
-	{
-		for(new i; i < sizeof(sc_VendingMachines); i++)
-		{
-			DestroyVendingMachine(i);
-		}
-
-		#if defined inc_Ven_OnFilterScriptExit
-			return inc_Ven_OnFilterScriptExit();
-		#else
-			return 0;
-		#endif
-	}
-	#if defined _ALS_OnFilterScriptExit
-		#undef OnFilterScriptExit
-	#else
-		#define _ALS_OnFilterScriptExit
-	#endif
-
-	#define OnFilterScriptExit inc_Ven_OnFilterScriptExit
-	#if defined inc_Ven_OnFilterScriptExit
-		forward inc_Ven_OnFilterScriptExit();
-	#endif
-#else
-	public OnGameModeInit()
-	{
-		for(new i; i < sizeof(sc_VendingMachines); i++)
-		{
-			CreateVendingMachine(sc_VendingMachines[i][e_Model], sc_VendingMachines[i][e_PosX], sc_VendingMachines[i][e_PosY], sc_VendingMachines[i][e_PosZ], sc_VendingMachines[i][e_RotX], sc_VendingMachines[i][e_RotY], sc_VendingMachines[i][e_RotZ]);
-		}
-
-		#if defined inc_Ven_OnGameModeInit
-			return inc_Ven_OnGameModeInit();
-		#else
-			return 0;
-		#endif
-	}
-	#if defined _ALS_OnGameModeInit
-		#undef OnGameModeInit
-	#else
-		#define _ALS_OnGameModeInit
-	#endif
-
-	#define OnGameModeInit inc_Ven_OnGameModeInit
-	#if defined inc_Ven_OnGameModeInit
-		forward inc_Ven_OnGameModeInit();
-	#endif
+#define OnGameModeInit inc_Ven_OnGameModeInit
+#if defined inc_Ven_OnGameModeInit
+	forward inc_Ven_OnGameModeInit();
 #endif
 
 //------------------------------------------------------------------------------
